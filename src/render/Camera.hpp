@@ -3,6 +3,7 @@
 #include <GLFW/glfw3.h>
 
 namespace aegis::render {
+
     class Camera {
     public:
         glm::vec3 position = { 2.816f, 1.024f, 1.0f };

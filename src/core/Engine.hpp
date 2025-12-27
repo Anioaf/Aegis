@@ -69,7 +69,8 @@ class Engine {
         uint32_t m_SelectedProvID = 0;
         std::string m_SelectedOwner = "None";
         glm::vec3 m_SelectedRGB = {0,0,0};
-
+        
+        bool m_ShowUI = true;
         float m_Last = 0, m_GameTime = 0, m_TimeScale = 1.0f;
         bool m_Paused = false;
     };
