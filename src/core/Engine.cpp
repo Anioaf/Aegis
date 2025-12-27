@@ -1,9 +1,6 @@
 #include "Engine.hpp"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
-#include <imgui.h>
-#include <imgui_impl_glfw.h>
-#include <imgui_impl_opengl3.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <fstream>
 #include <sstream>
@@ -27,7 +24,15 @@ namespace aegis {
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-        m_Window = glfwCreateWindow(1920, 1080, "Aegis", NULL, NULL);
+
+        // �������� ���������� ��������� ��������
+        GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+        const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+
+        // ������������� ������ � ������ ���� ������� ���������� ������
+        int width = mode->width;
+        int height = mode->height;
+        m_Window = glfwCreateWindow(width, height, "Aegis", monitor, NULL); // �������� monitor ����� ������� �� ������ �����
 
         if (!m_Window) return;
 
@@ -35,31 +40,13 @@ namespace aegis {
         glfwSetScrollCallback(m_Window, [](GLFWwindow*, double, double yoffset) { g_Scroll = (float)yoffset; });
         glewExperimental = GL_TRUE;
         glewInit();
-        
+
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_CULL_FACE);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     }
 
-    void Engine::InitImGui() {
-        IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
-        ImGuiIO& io = ImGui::GetIO();
-
-        // ВАЖНО: Загружаем шрифт с диапазоном Кириллицы для ImGui
-        if (fs::exists("./font/JetBrainsMono-Medium.ttf")) {
-            const ImWchar* ranges = io.Fonts->GetGlyphRangesCyrillic();
-            // Размер 20.0f для интерфейса
-            io.Fonts->AddFontFromFileTTF("./font/JetBrainsMono-Medium.ttf", 20.0f, NULL, ranges);
-        } else {
-            // Если шрифта нет, ImGui загрузит стандартный, который НЕ умеет в русский
-            std::cout << "[ImGui] Warning: Font not found, Cyrillic may not work!" << std::endl;
-        }
-
-        ImGui_ImplGlfw_InitForOpenGL(m_Window, true);
-        ImGui_ImplOpenGL3_Init("#version 410");
-    }
 
     void Engine::LoadDefinitions(const std::string& path) {
         std::ifstream f(path);
@@ -288,7 +275,6 @@ namespace aegis {
     }
 
     void Engine::UpdateMousePicking() {
-        if (ImGui::GetIO().WantCaptureMouse) return;
         if (glfwGetMouseButton(m_Window, GLFW_MOUSE_BUTTON_LEFT) != GLFW_PRESS) return;
         double mx, my;
         glfwGetCursorPos(m_Window, &mx, &my); 
@@ -341,10 +327,10 @@ namespace aegis {
         m_Shader = std::make_unique<render::Shader>("gfx/FX/Map.vert", "gfx/FX/Map.frag");
         m_TextShader = std::make_unique<render::Shader>("gfx/FX/Text.vert", "gfx/FX/Text.frag");
         
-        if (!fs::exists("./font/JetBrainsMono-Medium.ttf")) {
+        if (!fs::exists("C:/Windows/Fonts/Arial.ttf")) {
             std::cerr << "FONT NOT FOUND!" << std::endl;
         }
-        m_TextRenderer = std::make_unique<render::TextRenderer>("./font/JetBrainsMono-Medium.ttf", 64);
+        m_TextRenderer = std::make_unique<render::TextRenderer>("C:/Windows/Fonts/Arial.ttf", 64);
 
         auto loadTex = [](const char* p, GLenum f) {
             int w, h, c;
@@ -395,51 +381,6 @@ namespace aegis {
         glEnableVertexAttribArray(1);
     }
 
-    void Engine::UpdateUI() {
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-        
-        ImGui::Begin("Global Map Info");
-        ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
-        ImGui::Separator();
-        
-        if (m_SelectedProvID != 0) {
-            ImGui::Text("Province ID: %u", m_SelectedProvID);
-            ImGui::Text("Tag: %s", m_SelectedOwner.c_str());
-            
-            std::string finalName = m_SelectedOwner; 
-            std::string keyToCheck = m_SelectedOwner;
-
-            if (g_CountryPolicies.count(m_SelectedOwner)) {
-                std::string ideology = g_CountryPolicies[m_SelectedOwner];
-                ImGui::Text("Party: %s", ideology.c_str()); 
-                keyToCheck = m_SelectedOwner + "_" + ideology; 
-            } else {
-                ImGui::Text("Party: Unknown");
-            }
-
-            if (m_Localizations.count(keyToCheck)) {
-                finalName = m_Localizations[keyToCheck];
-            } 
-            else if (m_Localizations.count(m_SelectedOwner)) {
-                finalName = m_Localizations[m_SelectedOwner];
-            }
-            ImGui::Separator();
-            ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Name: %s", finalName.c_str());
-
-            if (m_CountryColors.count(m_SelectedOwner)) {
-                glm::vec3 c = m_CountryColors[m_SelectedOwner];
-                ImGui::ColorButton("##OwnerColor", {c.r, c.g, c.b, 1.0f}, 0, ImVec2(40, 40));
-            }
-        } else {
-            ImGui::Text("No province selected.");
-        }
-        
-        ImGui::End();
-        ImGui::Render();
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-    }
 
     void Engine::MainLoop() {
         while (!glfwWindowShouldClose(m_Window)) {
@@ -455,13 +396,19 @@ namespace aegis {
             static bool f10_held = false;
             if (glfwGetKey(m_Window, GLFW_KEY_F10) == GLFW_PRESS) {
                 if (!f10_held) { m_Shader->Reload(); m_TextShader->Reload(); f10_held = true; }
-            } else { f10_held = false; }
+            }
+            else { f10_held = false; }
 
             glClearColor(0.1f, 0.1f, 0.12f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             int fbW, fbH;
             glfwGetFramebufferSize(m_Window, &fbW, &fbH);
+
+            if (fbW == 0 || fbH == 0) {
+                continue;
+            }
+
             glViewport(0, 0, fbW, fbH);
 
             m_Shader->Use();
@@ -470,7 +417,7 @@ namespace aegis {
             m_Shader->SetMat4("p", proj);
             m_Shader->SetMat4("v", view);
             m_Shader->SetFloat("time", time);
-            m_Shader->SetVec3("u_SelectedColor", m_SelectedRGB); 
+            m_Shader->SetVec3("u_SelectedColor", m_SelectedRGB);
 
             glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, m_TexNorm); m_Shader->SetInt("normMap", 0);
             glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, m_TexHeight); m_Shader->SetInt("heightMap", 1);
@@ -479,36 +426,34 @@ namespace aegis {
             glBindVertexArray(m_VAO);
 
             for (float offset : {-WORLD_WIDTH, 0.0f, WORLD_WIDTH}) {
-                m_Shader->SetMat4("m", glm::translate(glm::mat4(1.0f), {offset, 0.0f, 0.0f}));
+                m_Shader->SetMat4("m", glm::translate(glm::mat4(1.0f), { offset, 0.0f, 0.0f }));
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
             }
 
             glDisable(GL_DEPTH_TEST);
-            
+
             m_TextShader->Use();
             m_TextShader->SetMat4("projection", proj);
             m_TextShader->SetMat4("view", view);
-            
+
             for (float offset : {-WORLD_WIDTH, 0.0f, WORLD_WIDTH}) {
-                m_TextShader->SetMat4("model", glm::translate(glm::mat4(1.0f), {offset, 0.0f, 0.0f}));
+                m_TextShader->SetMat4("model", glm::translate(glm::mat4(1.0f), { offset, 0.0f, 0.0f }));
                 for (const auto& txt : m_CountryTexts) {
-                    float estW = txt.displayName.length() * txt.size * 30.0f; 
+                    float estW = txt.displayName.length() * txt.size * 30.0f;
                     glm::vec3 pos = txt.worldPos;
-                    pos.x -= estW * 0.5f; 
-                    
+                    pos.x -= estW * 0.5f;
+
                     m_TextRenderer->RenderText(*m_TextShader, txt.displayName, pos, txt.size, glm::vec3(1.0f));
                 }
             }
             glEnable(GL_DEPTH_TEST);
 
-            UpdateUI();
             glfwSwapBuffers(m_Window);
         }
     }
 
     void Engine::Run() {
         InitWindow();
-        InitImGui();
         InitGraphics();
         MainLoop();
 
@@ -521,9 +466,6 @@ namespace aegis {
         glDeleteTextures(1, &m_TexProv);
         glDeleteTextures(1, &m_TexStateMap);
 
-        ImGui_ImplOpenGL3_Shutdown();
-        ImGui_ImplGlfw_Shutdown();
-        ImGui::DestroyContext();
         glfwDestroyWindow(m_Window);
         glfwTerminate();
     }

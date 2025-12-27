@@ -24,9 +24,7 @@ class Engine {
     private:
         void InitWindow();
         void InitGraphics();
-        void InitImGui();
         void MainLoop();
-        void UpdateUI();
 
         void LoadDefinitions(const std::string& path);
         void LoadCountryColors(const std::string& path);
@@ -40,6 +38,8 @@ class Engine {
         uint32_t PackRGB(uint8_t r, uint8_t g, uint8_t b) {
             return (uint32_t(r) << 16) | (uint32_t(g) << 8) | uint32_t(b);
         }
+
+        uint32_t m_EnvironmentMap;
 
         GLFWwindow* m_Window;
         std::unique_ptr<render::Shader> m_Shader;
