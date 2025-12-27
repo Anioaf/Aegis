@@ -6,12 +6,11 @@ layout (location = 1) in vec2 aTexCoords;
 out vec2 TexCoords;
 out vec3 FragPos;
 
-uniform mat4 m; // Model
-uniform mat4 v; // View
-uniform mat4 p; // Projection
+uniform mat4 m, v, p;
 
 void main() {
-    FragPos = vec3(m * vec4(aPos, 1.0));
+    vec4 worldPos = m * vec4(aPos, 1.0);
+    FragPos = worldPos.xyz;
     TexCoords = aTexCoords;
-    gl_Position = p * v * vec4(FragPos, 1.0);
+    gl_Position = p * v * worldPos;
 }
